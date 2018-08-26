@@ -86,39 +86,7 @@ class DocCheckCommand extends Command
         $style->writeln("Now processing $totalFiles files:");
         $this->progressBar->start();
 
-        $result = new Result();
-
-        foreach ($targetFiles as $target => $files) {
-            $targetResult = new Target();
-            $targetResult->setName($target);
-
-            $phpFiles = array_filter($files, function ($entry) {
-                return key_exists('extension', $entry) && $entry['extension'] == 'php';
-            });
-
-            $targetResult->addFilteredFiles($phpFiles);
-
-            $this->progressBar->advance(count($files) - count($phpFiles));
-
-            foreach ($phpFiles as $phpFile) {
-                try {
-                    $hasDocumentationLink = $this->hasDocumentationLink($phpFile['path']);
-                } catch (\Throwable $t) {
-                    $targetResult->addUnparsedFiles([$phpFile['path']]);
-                    $this->progressBar->advance();
-                    continue;
-                }
-
-                if (!$hasDocumentationLink) {
-                    $targetResult->addFailedFiles([$phpFile['path']]);
-
-                };
-
-                $this->progressBar->advance();
-            }
-            $result->addTarget($targetResult);
-        }
-
+        $result = new Result($targets, $this->fileSystem);
         $this->progressBar->finish();
         $this->showOutput($style, $result);
     }
@@ -159,22 +127,7 @@ class DocCheckCommand extends Command
         );
     }
 
-    /**
-     * @param string $filePath
-     * @return bool
-     */
-    private function hasDocumentationLink(string $filePath): bool
-    {
-        $projectFactory = ProjectFactory::createInstance();
-        $files = [new LocalFile($filePath)];
-        $project = $projectFactory->create('MyProject', $files);
-        $docblock = $project->getFiles()[$filePath]->getDocBlock();
-        if(!$docblock instanceof DocBlock) {
-            return false;
-        }
-        return (count($docblock->getTagsByName('see')) > 0|| count($docblock->getTagsByName('link')) > 0);
-    }
-
+    
     /**
      * @param $targets string[]
      * @return string[]

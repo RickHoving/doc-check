@@ -11,9 +11,10 @@ class Result
      */
     private $targets = [];
 
-    public function addTarget(Target $target)
-    {
-        array_push($this->targets, $target);
+    public function __construct($targets, $fileSystem) {
+        foreach($targets as $target) {
+            array_push($this->targets, new Target($target, $fileSystem));
+        }
     }
 
     public function getFailedFiles()

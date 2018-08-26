@@ -2,6 +2,13 @@
 
 namespace DocCheck\Command\Result;
 
+use DocCheck\Command\Result\Target;
+use League\Flysystem\Adapter\Local;
+use League\Flysystem\Filesystem;
+use phpDocumentor\Reflection\DocBlock;
+use phpDocumentor\Reflection\File\LocalFile;
+use phpDocumentor\Reflection\Php\ProjectFactory;
+
 class Target
 {
     private $name;
@@ -9,27 +16,48 @@ class Target
     private $failedFiles = [];
     private $unparsedFiles = [];
 
-    public function addFilteredFiles(array $files)
+    public function __construct($name, $fileSystem) 
     {
-        $this->filteredFiles = array_merge($files, $this->filteredFiles);
+        $this->name = $name;
+        $this->parseFiles($fileSystem);
     }
 
-    public function addUnparsedFiles(array $files)
+    private function parseFiles($fileSystem) 
     {
-        $this->unparsedFiles = array_merge($files, $this->unparsedFiles);
-    }
+        $files = $fileSystem->listContents($this->name, true);
+        $this->filteredFiles = array_filter($files, function ($entry) {
+            return key_exists('extension', $entry) && $entry['extension'] == 'php';
+        });
 
-    public function addFailedFiles(array $files)
-    {
-        $this->failedFiles = array_merge($files, $this->failedFiles);
+        foreach ($this->filteredFiles as $file) {
+            $filePath = $file['path'];
+            try {
+                $hasDocumentationLink = $this->hasDocumentationLink($filePath);
+            } catch(\Throwable $t) {
+                array_push($this->unparsedFiles, $filePath);
+                continue;
+            }
+
+            if (!$hasDocumentationLink) {
+                array_push($this->failedFiles, $filePath);
+            };
+        }
     }
 
     /**
-     * @param string $name
+     * @param string $filePath
+     * @return bool
      */
-    public function setName($name): void
+    private function hasDocumentationLink(string $filePath): bool
     {
-        $this->name = $name;
+        $projectFactory = ProjectFactory::createInstance();
+        $files = [new LocalFile($filePath)];
+        $project = $projectFactory->create('MyProject', $files);
+        $docblock = $project->getFiles()[$filePath]->getDocBlock();
+        if(!$docblock instanceof DocBlock) {
+           return false;
+        }
+        return (count($docblock->getTagsByName('see')) > 0|| count($docblock->getTagsByName('link')) > 0);
     }
 
     /**
@@ -63,8 +91,4 @@ class Target
     {
         return $this->unparsedFiles;
     }
-
-
-
-
 }
