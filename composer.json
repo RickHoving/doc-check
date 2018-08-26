@@ -1,0 +1,14 @@
+{
+    "name": "doc-check/doc-check",
+    "description": "CLI for checking documentation coverage",
+    "type": "library",
+    "require": {
+        "symfony/console": "^4.1",
+        "phpdocumentor/reflection": " ~4.0",
+        "league/flysystem": "^1.1@dev"
+    },
+    "autoload": {
+        "psr-4": {"DocCheck\\": "src/"}
+    },
+    "minimum-stability": "dev"
+}
